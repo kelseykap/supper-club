@@ -1,6 +1,6 @@
 {
-  "name": "LE",
-  "short_name": "LE",
+  "name": "Supper Club",
+  "short_name": "Supper Club",
   "description": "A personal recipe collection",
   "start_url": "./",
   "scope": "./",

@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="color-scheme" content="light" />
   <meta name="theme-color" content="#f6f4f0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="LE" />
+  <meta name="apple-mobile-web-app-title" content="Supper Club" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="assets/images/icon.png" />
   <link rel="apple-touch-icon" href="assets/images/icon.png" />
@@ -14,26 +16,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <title>LE</title>
+  <title>Supper Club</title>
 </head>
 <body>
 
   <!-- ============ HOME VIEW ============ -->
   <section id="view-home" class="view view--active">
     <header class="home-header">
-      <img src="assets/images/logo.png" alt="LE" class="logo" />
+      <img src="assets/images/logo.png" alt="Supper Club" class="logo" />
+      <button class="icon-btn header-settings" id="settings-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </header>
 
     <div class="search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input type="search" id="search-input" placeholder="Search recipes, ingredients, categories" autocomplete="off" />
+      <input type="search" id="search-input" placeholder="Search recipes" autocomplete="off" />
     </div>
 
     <div class="filter-chips" id="filter-chips"></div>
 
-    <main class="recipe-list" id="recipe-list">
-      <!-- Recipes injected here -->
-    </main>
+    <main class="recipe-list" id="recipe-list"></main>
 
     <div class="empty-state" id="empty-state" hidden>
       <p class="empty-title">No recipes yet</p>
@@ -57,6 +60,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
       </button>
       <div class="page-header__actions">
+        <button class="icon-btn icon-btn--bookmark" id="recipe-bookmark" aria-label="Bookmark">
+          <svg class="bookmark-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
         <button class="icon-btn" id="recipe-share" aria-label="Share">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
         </button>
@@ -69,9 +75,7 @@
       </div>
     </header>
 
-    <div class="recipe-detail" id="recipe-detail">
-      <!-- Content injected here -->
-    </div>
+    <div class="recipe-detail" id="recipe-detail"></div>
   </section>
 
   <!-- ============ ADD / EDIT FORM ============ -->
@@ -94,6 +98,12 @@
       </label>
       <button type="button" class="image-remove" id="image-remove" hidden>Remove photo</button>
 
+      <button type="button" class="import-btn" id="import-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Import from photo</span>
+      </button>
+      <input type="file" id="import-input" accept="image/*" hidden />
+
       <div class="field">
         <label for="title-input" class="field__label">Title</label>
         <input type="text" id="title-input" class="field__input" placeholder="Recipe name" maxlength="120" />
@@ -110,14 +120,17 @@
 
       <div class="field">
         <label for="ingredients-input" class="field__label">Ingredients</label>
-        <p class="field__hint">One per line</p>
         <textarea id="ingredients-input" class="field__input field__input--area" rows="6" placeholder="2 eggs&#10;1 cup flour&#10;..."></textarea>
       </div>
 
       <div class="field">
         <label for="method-input" class="field__label">Method</label>
-        <p class="field__hint">One step per line</p>
         <textarea id="method-input" class="field__input field__input--area" rows="8" placeholder="Preheat the oven&#10;Mix dry ingredients&#10;..."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="source-input" class="field__label">Source</label>
+        <input type="text" id="source-input" class="field__input" placeholder="Optional — book, website, person" maxlength="200" />
       </div>
 
       <div class="field">
@@ -128,6 +141,79 @@
       <div class="form-bottom-space"></div>
     </form>
   </section>
+
+  <!-- ============ IMAGE CROPPER ============ -->
+  <section id="view-cropper" class="view">
+    <header class="page-header">
+      <button class="icon-btn" id="cropper-cancel" aria-label="Cancel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <h1 class="page-title">Crop photo</h1>
+      <button class="text-btn" id="cropper-done">Done</button>
+    </header>
+    <div class="cropper-wrap">
+      <img id="cropper-img" alt="" />
+    </div>
+  </section>
+
+  <!-- ============ OCR REVIEW (fallback) ============ -->
+  <section id="view-ocr" class="view">
+    <header class="page-header">
+      <button class="icon-btn" id="ocr-cancel" aria-label="Cancel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <h1 class="page-title">Imported text</h1>
+      <span class="text-btn" style="visibility:hidden">Done</span>
+    </header>
+    <div class="ocr-wrap">
+      <p class="ocr-hint">Edit the text below, then choose where to put it.</p>
+      <textarea id="ocr-text" class="field__input field__input--area" rows="16" spellcheck="false"></textarea>
+      <div class="ocr-actions">
+        <button type="button" class="btn btn--ghost" id="ocr-to-ingredients">Use as Ingredients</button>
+        <button type="button" class="btn btn--ghost" id="ocr-to-method">Use as Method</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section id="view-settings" class="view">
+    <header class="page-header">
+      <button class="icon-btn" id="settings-back" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <h1 class="page-title">Settings</h1>
+      <button class="text-btn" id="settings-save">Save</button>
+    </header>
+
+    <div class="settings-wrap">
+      <div class="field">
+        <label for="api-key-input" class="field__label">Claude API Key</label>
+        <p class="field__hint">Used to read recipes from photos. Stored only on this device.</p>
+        <input type="password" id="api-key-input" class="field__input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+        <button type="button" class="text-link" id="api-key-toggle">Show</button>
+      </div>
+
+      <div class="settings-info">
+        <p class="settings-info__title">How to get a key</p>
+        <ol class="settings-info__steps">
+          <li>Go to <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></li>
+          <li>Sign in and open API Keys</li>
+          <li>Create a key, paste it here</li>
+        </ol>
+        <p class="settings-info__cost">Cost: about $0.003 per recipe import using Claude Haiku 4.5</p>
+      </div>
+
+      <button type="button" class="btn btn--ghost settings-clear" id="api-key-clear">Remove key</button>
+    </div>
+  </section>
+
+  <!-- ============ LOADING OVERLAY ============ -->
+  <div class="loading-overlay" id="loading-overlay" hidden>
+    <div class="loading-overlay__inner">
+      <div class="spinner"></div>
+      <p class="loading-overlay__msg" id="loading-overlay-msg">Reading recipe…</p>
+    </div>
+  </div>
 
   <!-- ============ CONFIRM (delete) ============ -->
   <section id="view-confirm" class="view">

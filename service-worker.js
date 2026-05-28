@@ -1,7 +1,7 @@
-/* LE — service worker
+/* Supper Club — service worker
    Cache the app shell so it works offline. */
 
-const CACHE_VERSION = 'le-v1';
+const CACHE_VERSION = 'supperclub-v1';
 const APP_SHELL = [
   './',
   'index.html',
@@ -10,7 +10,9 @@ const APP_SHELL = [
   'manifest.json',
   'assets/images/logo.png',
   'assets/images/icon.png',
-  'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap'
+  'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap',
+  'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js'
 ];
 
 self.addEventListener('install', (event) => {
