@@ -1,7 +1,7 @@
 /* Supper Club — service worker
    Cache the app shell so it works offline. */
 
-const CACHE_VERSION = 'supperclub-v1';
+const CACHE_VERSION = 'supperclub-v2';
 const APP_SHELL = [
   './',
   'index.html',

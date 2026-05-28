@@ -29,6 +29,9 @@
 
 * { box-sizing: border-box; }
 
+/* Make the HTML `hidden` attribute win over class display rules */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -90,13 +93,6 @@ input, textarea {
   width: auto;
   display: block;
 }
-.header-settings {
-  position: absolute;
-  right: 8px;
-  top: calc(var(--safe-top) + 12px);
-  color: var(--grey);
-}
-.header-settings svg { width: 20px; height: 20px; }
 
 .search-wrap {
   position: relative;
@@ -752,57 +748,6 @@ input, textarea {
   margin-top: 20px;
 }
 .ocr-actions .btn { background: #fff; }
-
-/* ============ Settings view ============ */
-.settings-wrap {
-  padding: 8px var(--space) calc(40px + var(--safe-bottom));
-}
-.settings-wrap .field { position: relative; }
-.text-link {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--grey);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.settings-info {
-  margin: 24px 0 32px;
-  padding: 18px;
-  background: #fff;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-}
-.settings-info__title {
-  margin: 0 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--grey);
-}
-.settings-info__steps {
-  margin: 0 0 14px;
-  padding-left: 20px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--ink-soft);
-}
-.settings-info__steps a {
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.settings-info__cost {
-  margin: 0;
-  font-size: 13px;
-  color: var(--grey);
-}
-.settings-clear {
-  margin-top: 16px;
-  width: 100%;
-}
 
 /* ============ Loading overlay ============ */
 .loading-overlay {

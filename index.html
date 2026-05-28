@@ -24,9 +24,6 @@
   <section id="view-home" class="view view--active">
     <header class="home-header">
       <img src="assets/images/logo.png" alt="Supper Club" class="logo" />
-      <button class="icon-btn header-settings" id="settings-btn" aria-label="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
     </header>
 
     <div class="search-wrap">
@@ -172,38 +169,6 @@
         <button type="button" class="btn btn--ghost" id="ocr-to-ingredients">Use as Ingredients</button>
         <button type="button" class="btn btn--ghost" id="ocr-to-method">Use as Method</button>
       </div>
-    </div>
-  </section>
-
-  <!-- ============ SETTINGS ============ -->
-  <section id="view-settings" class="view">
-    <header class="page-header">
-      <button class="icon-btn" id="settings-back" aria-label="Back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      </button>
-      <h1 class="page-title">Settings</h1>
-      <button class="text-btn" id="settings-save">Save</button>
-    </header>
-
-    <div class="settings-wrap">
-      <div class="field">
-        <label for="api-key-input" class="field__label">Claude API Key</label>
-        <p class="field__hint">Used to read recipes from photos. Stored only on this device.</p>
-        <input type="password" id="api-key-input" class="field__input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
-        <button type="button" class="text-link" id="api-key-toggle">Show</button>
-      </div>
-
-      <div class="settings-info">
-        <p class="settings-info__title">How to get a key</p>
-        <ol class="settings-info__steps">
-          <li>Go to <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></li>
-          <li>Sign in and open API Keys</li>
-          <li>Create a key, paste it here</li>
-        </ol>
-        <p class="settings-info__cost">Cost: about $0.003 per recipe import using Claude Haiku 4.5</p>
-      </div>
-
-      <button type="button" class="btn btn--ghost settings-clear" id="api-key-clear">Remove key</button>
     </div>
   </section>
 

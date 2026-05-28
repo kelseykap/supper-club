@@ -1,7 +1,7 @@
 /* =====================================================
    Supper Club — Recipe app
    Local-storage CRUD + hash routing
-   Image cropping (Cropper.js) + AI import (Claude API)
+   Image cropping (Cropper.js) + OCR import (Tesseract.js)
    ===================================================== */
 
 (function () {
@@ -10,7 +10,6 @@
   // ---------- Constants ----------
   const STORAGE_KEY = 'le.recipes.v1';
   const CATEGORIES_KEY = 'le.categories.v1';
-  const API_KEY_KEY = 'le.apiKey.v1';
   const DEFAULT_CATEGORIES = [
     'Breakfast', 'Lunch', 'Dinner', 'Dessert',
     'Snack', 'Drinks', 'Baking', 'Salad', 'Soup', 'Side'
@@ -18,27 +17,6 @@
   const CROPPER_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css';
   const CROPPER_JS = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js';
   const TESSERACT_JS = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  const CLAUDE_MODEL = 'claude-haiku-4-5';
-  const CLAUDE_ENDPOINT = 'https://api.anthropic.com/v1/messages';
-  const CLAUDE_VERSION = '2023-06-01';
-  const IMPORT_PROMPT =
-`You are extracting a recipe from an image. Look at the image and return ONLY a valid JSON object (no markdown fences, no prose, no explanation) with these exact keys:
-
-{
-  "title": "the recipe name (string)",
-  "ingredients": ["each ingredient as one string, keep quantities"],
-  "method": ["each step as one string, in order"],
-  "source": "where the recipe is from if mentioned (book, website, person), otherwise an empty string",
-  "notes": "any tips, variations or notes mentioned, otherwise an empty string",
-  "categories": ["1-3 categories, prefer these when they fit: Breakfast, Lunch, Dinner, Dessert, Snack, Drinks, Baking, Salad, Soup, Side"]
-}
-
-Rules:
-- Keep ingredient and method text exactly as written when possible
-- Do NOT include numbering in the strings (no "1." prefix on method steps)
-- If a field is not present in the image, use empty string ("") or empty array ([])
-- If the image is not a recipe, return all fields empty
-- Output ONLY the JSON object`;
 
   // ---------- State ----------
   let recipes = loadRecipes();
@@ -51,7 +29,6 @@ Rules:
   let currentRecipeId = null;
   let pendingDeleteId = null;
   let cropperInstance = null;
-  let lastImportDataUrl = null;   // kept around for OCR fallback after Claude fails
 
   // ---------- Storage ----------
   function loadRecipes() {
@@ -74,17 +51,6 @@ Rules:
     try { localStorage.setItem(CATEGORIES_KEY, JSON.stringify(userCategories)); }
     catch (e) { /* ignore */ }
   }
-  function loadApiKey() {
-    try { return localStorage.getItem(API_KEY_KEY) || ''; }
-    catch (e) { return ''; }
-  }
-  function saveApiKey(key) {
-    try {
-      if (key) localStorage.setItem(API_KEY_KEY, key);
-      else localStorage.removeItem(API_KEY_KEY);
-    } catch (e) { /* ignore */ }
-  }
-
   function allCategories() {
     const seen = new Set();
     const out = [];
@@ -163,11 +129,6 @@ Rules:
       currentRecipeId = null;
       renderHome();
       showView('home');
-      return;
-    }
-    if (h === '#/settings') {
-      openSettings();
-      showView('settings');
       return;
     }
     const m = h.match(/^#\/recipe\/([^\/]+)$/);
@@ -656,39 +617,6 @@ Rules:
     document.getElementById('image-input').value = '';
   }
 
-  // ---------- Settings ----------
-  function openSettings() {
-    const input = document.getElementById('api-key-input');
-    input.value = loadApiKey();
-    input.type = 'password';
-    document.getElementById('api-key-toggle').textContent = 'Show';
-  }
-
-  function saveSettings() {
-    const key = document.getElementById('api-key-input').value.trim();
-    saveApiKey(key);
-    toast(key ? 'Settings saved' : 'Key removed');
-    navigate('#/');
-  }
-
-  function toggleApiKeyVisibility() {
-    const input = document.getElementById('api-key-input');
-    const btn = document.getElementById('api-key-toggle');
-    if (input.type === 'password') {
-      input.type = 'text';
-      btn.textContent = 'Hide';
-    } else {
-      input.type = 'password';
-      btn.textContent = 'Show';
-    }
-  }
-
-  function clearApiKey() {
-    saveApiKey('');
-    document.getElementById('api-key-input').value = '';
-    toast('Key removed');
-  }
-
   // ---------- Loading overlay ----------
   function showLoading(msg) {
     document.getElementById('loading-overlay-msg').textContent = msg || 'Loading…';
@@ -698,200 +626,25 @@ Rules:
     document.getElementById('loading-overlay').hidden = true;
   }
 
-  // ---------- AI import (Claude API) ----------
-  function dataUrlToBase64(dataUrl) {
-    const idx = dataUrl.indexOf(',');
-    return idx >= 0 ? dataUrl.substring(idx + 1) : dataUrl;
-  }
-  function dataUrlMediaType(dataUrl) {
-    const m = dataUrl.match(/^data:([^;]+);/);
-    return m ? m[1] : 'image/jpeg';
-  }
-
-  async function callClaudeWithImage(apiKey, dataUrl) {
-    const base64 = dataUrlToBase64(dataUrl);
-    const mediaType = dataUrlMediaType(dataUrl);
-
-    const body = {
-      model: CLAUDE_MODEL,
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: base64 }
-          },
-          { type: 'text', text: IMPORT_PROMPT }
-        ]
-      }]
-    };
-
-    const res = await fetch(CLAUDE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': CLAUDE_VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-      let errMsg = 'API error ' + res.status;
-      try {
-        const errBody = await res.json();
-        if (errBody && errBody.error && errBody.error.message) {
-          errMsg = errBody.error.message;
-        }
-      } catch (e) { /* ignore */ }
-      const err = new Error(errMsg);
-      err.status = res.status;
-      throw err;
-    }
-
-    const data = await res.json();
-    const text = (data.content || [])
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('');
-    return text;
-  }
-
-  function parseRecipeJson(text) {
-    if (!text) return null;
-    // Try direct parse first
-    let raw = text.trim();
-    // Strip markdown code fences if present
-    raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-    // Try parse
-    try { return JSON.parse(raw); } catch (e) { /* fall through */ }
-    // Extract first {...} block
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { return JSON.parse(match[0]); } catch (e) { /* ignore */ }
-    }
-    return null;
-  }
-
-  function normaliseRecipe(parsed) {
-    if (!parsed || typeof parsed !== 'object') return null;
-    const arr = (v) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [];
-    const str = (v) => (typeof v === 'string' ? v.trim() : '');
-    const r = {
-      title: str(parsed.title),
-      ingredients: arr(parsed.ingredients),
-      method: arr(parsed.method),
-      source: str(parsed.source),
-      notes: str(parsed.notes),
-      categories: arr(parsed.categories),
-    };
-    // Strip leading "1. " / "2) " numbering from method steps if Claude added them
-    r.method = r.method.map(s => s.replace(/^\s*\d+\s*[\.\)\-:]\s*/, '').trim());
-    // Drop bullet prefixes from ingredients
-    r.ingredients = r.ingredients.map(s => s.replace(/^\s*[•\-\*]\s*/, '').trim());
-    return r;
-  }
-
-  function fillFormFromRecipe(r) {
-    if (r.title) document.getElementById('title-input').value = r.title;
-    if (r.ingredients.length) {
-      document.getElementById('ingredients-input').value = r.ingredients.join('\n');
-    }
-    if (r.method.length) {
-      document.getElementById('method-input').value = r.method.join('\n');
-    }
-    if (r.source) document.getElementById('source-input').value = r.source;
-    if (r.notes) document.getElementById('notes-input').value = r.notes;
-    if (r.categories.length) {
-      // Merge with current selection (case-insensitive)
-      r.categories.forEach(c => {
-        if (!editingCategories.some(x => x.toLowerCase() === c.toLowerCase())) {
-          editingCategories.push(c);
-        }
-        // Also remember category if it's new
-        const known = allCategories();
-        if (!known.some(k => k.toLowerCase() === c.toLowerCase())) {
-          userCategories.push(c);
-        }
-      });
-      saveCategories();
-      renderCategoryPickers();
-    }
-  }
-
-  function isCreditError(err) {
-    if (!err) return false;
-    if (err.status === 402) return true;
-    const msg = (err.message || '').toLowerCase();
-    return /credit|billing|quota|insufficient.*balance|too low/.test(msg);
-  }
-
+  // ---------- OCR import (Tesseract.js) ----------
   async function importFromPhoto(file) {
-    const apiKey = loadApiKey();
     if (!file || !file.type.startsWith('image/')) {
       toast('Please choose an image');
       return;
     }
-
-    // No API key → go straight to OCR fallback (user told us so)
-    if (!apiKey) {
-      try {
-        const rawDataUrl = await fileToDataUrl(file);
-        lastImportDataUrl = await compressDataUrl(rawDataUrl, 1568, 0.85);
-      } catch (e) {
-        toast('Could not load image');
-        return;
-      }
-      toast('Add API key in Settings, or use OCR');
-      setTimeout(() => runOcrFallback(lastImportDataUrl), 1200);
-      return;
-    }
-
-    showLoading('Reading recipe…');
+    let dataUrl;
     try {
       const rawDataUrl = await fileToDataUrl(file);
-      lastImportDataUrl = await compressDataUrl(rawDataUrl, 1568, 0.85);
-
-      const text = await callClaudeWithImage(apiKey, lastImportDataUrl);
-      const parsed = parseRecipeJson(text);
-      const recipe = normaliseRecipe(parsed);
-
-      if (!recipe || (!recipe.title && !recipe.ingredients.length && !recipe.method.length)) {
-        hideLoading();
-        toast('Could not find a recipe in this image');
-        return;
-      }
-
-      fillFormFromRecipe(recipe);
-      hideLoading();
-      toast('Recipe imported — review and save');
-    } catch (err) {
-      hideLoading();
-      console.error(err);
-      // Out of Claude credits → automatic fallback to OCR
-      if (isCreditError(err)) {
-        toast('Out of Claude credits — using OCR');
-        setTimeout(() => runOcrFallback(lastImportDataUrl), 1200);
-        return;
-      }
-      if (err.status === 401) {
-        toast('API key not valid — check Settings');
-      } else if (err.status === 429) {
-        toast('Rate limited — try again in a moment');
-      } else if (err.message && err.message.length < 80) {
-        toast(err.message);
-      } else {
-        toast('Could not read recipe');
-      }
-    } finally {
-      document.getElementById('import-input').value = '';
+      dataUrl = await compressDataUrl(rawDataUrl, 1568, 0.85);
+    } catch (e) {
+      toast('Could not load image');
+      return;
     }
+    await runOcr(dataUrl);
+    document.getElementById('import-input').value = '';
   }
 
-  // ---------- OCR fallback (Tesseract.js) ----------
-  async function runOcrFallback(dataUrl) {
+  async function runOcr(dataUrl) {
     if (!dataUrl) { toast('No image to read'); return; }
     showLoading('Loading OCR…');
     try {
@@ -1010,7 +763,6 @@ Rules:
   function wireEvents() {
     // Home
     document.getElementById('fab-add').addEventListener('click', () => navigate('#/new'));
-    document.getElementById('settings-btn').addEventListener('click', () => navigate('#/settings'));
     document.getElementById('search-input').addEventListener('input', (e) => {
       searchTerm = e.target.value.trim();
       renderRecipeList();
@@ -1068,16 +820,10 @@ Rules:
       }
     });
 
-    // OCR fallback review
+    // OCR review
     document.getElementById('ocr-cancel').addEventListener('click', () => showView('edit'));
     document.getElementById('ocr-to-ingredients').addEventListener('click', () => applyOcrTo('ingredients'));
     document.getElementById('ocr-to-method').addEventListener('click', () => applyOcrTo('method'));
-
-    // Settings
-    document.getElementById('settings-back').addEventListener('click', () => navigate('#/'));
-    document.getElementById('settings-save').addEventListener('click', saveSettings);
-    document.getElementById('api-key-toggle').addEventListener('click', toggleApiKeyVisibility);
-    document.getElementById('api-key-clear').addEventListener('click', clearApiKey);
 
     // Confirm
     document.getElementById('confirm-cancel').addEventListener('click', () => {
