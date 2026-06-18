@@ -24,6 +24,13 @@
   <section id="view-home" class="view view--active">
     <header class="home-header">
       <img src="assets/images/logo.png" alt="Supper Club" class="logo" />
+      <button type="button" class="export-btn" id="export-btn" aria-label="Export recipes" title="Export recipes as backup">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
     </header>
 
     <div class="search-wrap">
@@ -86,26 +93,50 @@
     </header>
 
     <form class="recipe-form" id="recipe-form" autocomplete="off">
-      <label class="image-upload" for="image-input">
-        <div class="image-upload__preview" id="image-preview">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
-          <span>Add photo</span>
-        </div>
-        <input type="file" id="image-input" accept="image/*" hidden />
-      </label>
-      <button type="button" class="image-remove" id="image-remove" hidden>Remove photo</button>
 
+      <!-- 1. Import from photo (OCR) — first -->
       <button type="button" class="import-btn" id="import-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>Import from photo</span>
       </button>
-      <input type="file" id="import-input" accept="image/*" hidden />
+      <!-- multiple photos allowed for OCR -->
+      <input type="file" id="import-input" accept="image/*" multiple hidden />
 
+      <!-- 2. Meal photo(s) -->
+      <!-- Empty state: large tap area -->
+      <label class="image-upload" id="image-upload-empty" for="image-input">
+        <div class="image-upload__preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+          <span>Add photo</span>
+        </div>
+      </label>
+      <!-- Filled state: thumbnail strip + add-more button -->
+      <div class="image-strip-wrap" id="image-strip-wrap" hidden>
+        <div class="image-strip" id="image-strip"></div>
+        <label class="image-strip__add" for="image-input" aria-label="Add more photos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M12 8v8M8 12h8"/>
+          </svg>
+        </label>
+      </div>
+      <!-- multiple photos allowed for meal -->
+      <input type="file" id="image-input" accept="image/*" multiple hidden />
+
+      <!-- 3. Source (URL + title) — above title -->
+      <div class="field">
+        <span class="field__label">Source</span>
+        <input type="url" id="source-url-input" class="field__input" placeholder="Link (optional)" inputmode="url" autocorrect="off" autocapitalize="none" />
+        <input type="text" id="source-title-input" class="field__input source-title-input" placeholder="Title (optional — filled automatically for some links)" maxlength="200" />
+      </div>
+
+      <!-- 4. Title -->
       <div class="field">
         <label for="title-input" class="field__label">Title</label>
         <input type="text" id="title-input" class="field__input" placeholder="Recipe name" maxlength="120" />
       </div>
 
+      <!-- 5. Categories -->
       <div class="field">
         <span class="field__label">Categories</span>
         <div class="category-pickers" id="category-pickers"></div>
@@ -115,21 +146,19 @@
         </div>
       </div>
 
+      <!-- 6. Ingredients -->
       <div class="field">
         <label for="ingredients-input" class="field__label">Ingredients</label>
         <textarea id="ingredients-input" class="field__input field__input--area" rows="6" placeholder="2 eggs&#10;1 cup flour&#10;..."></textarea>
       </div>
 
+      <!-- 7. Method -->
       <div class="field">
         <label for="method-input" class="field__label">Method</label>
         <textarea id="method-input" class="field__input field__input--area" rows="8" placeholder="Preheat the oven&#10;Mix dry ingredients&#10;..."></textarea>
       </div>
 
-      <div class="field">
-        <label for="source-input" class="field__label">Source</label>
-        <input type="text" id="source-input" class="field__input" placeholder="Optional — book, website, person" maxlength="200" />
-      </div>
-
+      <!-- 8. Notes -->
       <div class="field">
         <label for="notes-input" class="field__label">Notes</label>
         <textarea id="notes-input" class="field__input field__input--area" rows="3" placeholder="Optional"></textarea>
@@ -153,7 +182,7 @@
     </div>
   </section>
 
-  <!-- ============ OCR REVIEW (fallback) ============ -->
+  <!-- ============ OCR REVIEW ============ -->
   <section id="view-ocr" class="view">
     <header class="page-header">
       <button class="icon-btn" id="ocr-cancel" aria-label="Cancel">
