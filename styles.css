@@ -791,32 +791,32 @@ input, textarea {
 }
 .settings-btn {
   position: absolute;
-  right: var(--space);
+  right: 14px;
   top: 50%;
   transform: translateY(-50%);
   margin-top: calc(var(--safe-top) / 2);
-  width: var(--tap);
-  height: var(--tap);
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--grey);
+  color: var(--grey-soft);
   border-radius: 50%;
   transition: color 0.15s ease, background 0.15s ease;
 }
-.settings-btn:active { background: var(--cream-deep); color: var(--ink); }
-.settings-btn svg { width: 20px; height: 20px; }
+.settings-btn:active { background: var(--cream-deep); color: var(--grey); }
+.settings-btn svg { width: 15px; height: 15px; }
 
 /* Sync status dot */
 .sync-dot {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: transparent;
-  border: 2px solid transparent;
+  border: 1.5px solid transparent;
 }
 .sync-dot--ok      { background: #4a9e6b; border-color: #4a9e6b; }
 .sync-dot--error   { background: #b3261e; border-color: #b3261e; }
