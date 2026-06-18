@@ -785,11 +785,11 @@ input, textarea {
   to { transform: rotate(360deg); }
 }
 
-/* ============ Export button (home header) ============ */
+/* ============ Settings / sync button (home header) ============ */
 .home-header {
   position: relative;
 }
-.export-btn {
+.settings-btn {
   position: absolute;
   right: var(--space);
   top: 50%;
@@ -804,8 +804,101 @@ input, textarea {
   border-radius: 50%;
   transition: color 0.15s ease, background 0.15s ease;
 }
-.export-btn:active { background: var(--cream-deep); color: var(--ink); }
-.export-btn svg { width: 20px; height: 20px; }
+.settings-btn:active { background: var(--cream-deep); color: var(--ink); }
+.settings-btn svg { width: 20px; height: 20px; }
+
+/* Sync status dot */
+.sync-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid transparent;
+}
+.sync-dot--ok      { background: #4a9e6b; border-color: #4a9e6b; }
+.sync-dot--error   { background: #b3261e; border-color: #b3261e; }
+.sync-dot--syncing {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ============ Settings view ============ */
+.settings-wrap {
+  padding: 16px var(--space) calc(60px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.settings-card {
+  background: #fff;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.settings-card__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.settings-card__desc {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--grey);
+  line-height: 1.5;
+}
+.settings-link {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.settings-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.settings-info-row:last-of-type { border-bottom: none; }
+.settings-info-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey);
+  flex-shrink: 0;
+}
+.settings-info-value {
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: right;
+  word-break: break-all;
+}
+.settings-status-ok  { color: #4a9e6b; font-weight: 600; }
+.settings-mono       { font-family: monospace; font-size: 11px; }
+.settings-btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.settings-btn-row .btn { flex: 1; }
+.settings-full-btn { width: 100%; margin-top: 4px; }
+
+/* Primary button style */
+.btn--primary {
+  background: var(--ink);
+  color: var(--cream);
+}
 
 /* ============ Image strip (multi-photo in edit form) ============ */
 .image-strip-wrap {
@@ -902,28 +995,47 @@ input, textarea {
   margin-top: 8px;
 }
 
-/* ============ Special categories: Made & Want to Make ============ */
-/* Filter chips */
-.chip--made,
-.chip--want {
-  border-color: var(--line);
+/* ============ Made tick button (recipe detail header) ============ */
+.made-svg {
+  width: 22px;
+  height: 22px;
+  transition: stroke 0.15s ease;
 }
-.chip--made svg,
-.chip--want svg {
+.icon-btn--made.is-made .made-svg {
+  stroke: #4a9e6b;
+  fill: #4a9e6b;
+  color: #4a9e6b;
+}
+
+/* Made badge on recipe cards */
+.recipe-card__made {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  color: #4a9e6b;
+}
+.recipe-card__made svg {
+  width: 100%;
+  height: 100%;
+  stroke: #4a9e6b;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Made filter chip */
+.chip--made svg {
   width: 12px;
   height: 12px;
   margin-right: 5px;
   vertical-align: -1px;
   flex-shrink: 0;
-}
-.chip--made svg {
   stroke: #4a9e6b;
   fill: none;
-}
-.chip--want svg {
-  fill: var(--accent-2);
-  stroke: var(--accent-2);
-  stroke-width: 1;
 }
 .chip--made.chip--active {
   background: #4a9e6b;
@@ -931,48 +1043,6 @@ input, textarea {
   color: #fff;
 }
 .chip--made.chip--active svg { stroke: #fff; }
-.chip--want.chip--active {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
-  color: #fff;
-}
-.chip--want.chip--active svg { fill: #fff; stroke: #fff; }
-
-/* Category pickers: special buttons */
-.cat-pick--made,
-.cat-pick--want {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.cat-pick--made svg,
-.cat-pick--want svg {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-}
-.cat-pick--made svg { stroke: #4a9e6b; fill: none; }
-.cat-pick--want svg { fill: var(--accent-2); stroke: var(--accent-2); stroke-width: 1; }
-.cat-pick--made.cat-pick--active {
-  background: #4a9e6b;
-  border-color: #4a9e6b;
-  color: #fff;
-}
-.cat-pick--made.cat-pick--active svg { stroke: #fff; }
-.cat-pick--want.cat-pick--active {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
-  color: #fff;
-}
-.cat-pick--want.cat-pick--active svg { fill: #fff; stroke: #fff; }
-
-/* Divider between special and regular categories */
-.cat-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--line-soft);
-  margin: 8px 0 4px;
-}
 
 /* ============ Larger screens: still mobile-feel, centered ============ */
 @media (min-width: 640px) {
@@ -986,7 +1056,7 @@ input, textarea {
   .fab {
     right: calc(50vw - 270px + 20px);
   }
-  .export-btn {
+  .settings-btn {
     right: calc(50vw - 270px + var(--space));
   }
 }
