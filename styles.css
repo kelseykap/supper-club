@@ -914,8 +914,6 @@ input, textarea {
 }
 .icon-btn--made.is-made .made-svg {
   stroke: #4a9e6b;
-  fill: #4a9e6b;
-  color: #4a9e6b;
 }
 
 /* Made badge on recipe cards */

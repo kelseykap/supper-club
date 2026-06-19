@@ -267,7 +267,7 @@
       if (!await ensureToken(false)) throw new Error('Sign-in cancelled');
       gdriveConnected = true;
       localStorage.setItem('le.gdrive.connected', '1');
-      await gdrivePush();
+      await gdrivePull(); // pull first — if no Drive file yet, gdrivePull creates one from local
       renderGdriveHomeBtn();
       toast('Connected to Google Drive ✓');
     } catch (e) {
