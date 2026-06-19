@@ -38,11 +38,11 @@
   let sortDir           = 'desc';
 
   // Drive sync state
-  let gdriveToken   = localStorage.getItem('le.gdrive.token')   || '';
-  let gdriveExpiry  = parseInt(localStorage.getItem('le.gdrive.expiry') || '0', 10);
-  let gdriveFileId  = localStorage.getItem('le.gdrive.file_id') || '';
-  let gdriveEmail   = localStorage.getItem('le.gdrive.email')   || '';
-  let tokenClient   = null;
+  let gdriveToken     = localStorage.getItem('le.gdrive.token')     || '';
+  let gdriveExpiry    = parseInt(localStorage.getItem('le.gdrive.expiry') || '0', 10);
+  let gdriveFileId    = localStorage.getItem('le.gdrive.file_id')   || '';
+  let gdriveConnected = localStorage.getItem('le.gdrive.connected') === '1';
+  let tokenClient     = null;
   let _tokenResolve = null;
   let _tokenReject  = null;
   let pushTimer     = null;
@@ -68,7 +68,7 @@
   }
   function saveRecipes() {
     saveRecipesLocal();
-    if (gdriveEmail) {
+    if (gdriveConnected) {
       clearTimeout(pushTimer);
       pushTimer = setTimeout(() => gdrivePush().catch(() => {}), 2000);
     }
@@ -127,7 +127,6 @@
     localStorage.setItem('le.gdrive.token',   gdriveToken);
     localStorage.setItem('le.gdrive.expiry',  String(gdriveExpiry));
     localStorage.setItem('le.gdrive.file_id', gdriveFileId);
-    localStorage.setItem('le.gdrive.email',   gdriveEmail);
   }
 
   function loadGisScript() {
@@ -225,7 +224,7 @@
   }
 
   async function gdrivePush() {
-    if (!gdriveEmail) return;
+    if (!gdriveConnected) return;
     if (!await ensureToken()) return;
     try {
       const fileId = await driveEnsureFile();
@@ -240,7 +239,7 @@
   }
 
   async function gdrivePull() {
-    if (!gdriveEmail) return;
+    if (!gdriveConnected) return;
     if (!await ensureToken()) return;
     try {
       const fileId = gdriveFileId || await driveFindFile();
@@ -266,14 +265,8 @@
     if (btn) btn.disabled = true;
     try {
       if (!await ensureToken(false)) throw new Error('Sign-in cancelled');
-      const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { 'Authorization': `Bearer ${gdriveToken}` }
-      });
-      if (infoRes.ok) {
-        const user = await infoRes.json();
-        gdriveEmail = user.email || '';
-        localStorage.setItem('le.gdrive.email', gdriveEmail);
-      }
+      gdriveConnected = true;
+      localStorage.setItem('le.gdrive.connected', '1');
       await gdrivePush();
       renderGdriveHomeBtn();
       toast('Connected to Google Drive ✓');
@@ -287,8 +280,9 @@
   function renderGdriveHomeBtn() {
     const btn = document.getElementById('gdrive-home-btn');
     if (!btn) return;
-    if (gdriveEmail) {
+    if (gdriveConnected) {
       btn.hidden = true;
+      return;
     } else {
       btn.hidden = false;
       btn.innerHTML = `
@@ -955,14 +949,14 @@
   }
 
   async function init() {
-    ['le.sync.token','le.sync.gist_id','le.sync.last_at'].forEach(k => localStorage.removeItem(k));
+    ['le.sync.token','le.sync.gist_id','le.sync.last_at','le.gdrive.email','le.gdrive.last_at'].forEach(k => localStorage.removeItem(k));
     wireEvents();
     renderGdriveHomeBtn();
     handleHash();
     registerServiceWorker();
     await loadGisScript();
     initTokenClient();
-    if (gdriveEmail) gdrivePull().catch(() => {});
+    if (gdriveConnected) gdrivePull().catch(() => {});
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
