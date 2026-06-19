@@ -24,14 +24,10 @@
   <section id="view-home" class="view view--active">
     <header class="home-header">
       <img src="assets/images/logo.png" alt="Supper Club" class="logo" />
-      <button type="button" class="settings-btn" id="settings-btn" aria-label="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        <span class="sync-dot" id="sync-dot"></span>
-      </button>
+      <!-- Google Drive button: sign-in when disconnected, sync dot when connected -->
+      <button type="button" class="gdrive-home-btn" id="gdrive-home-btn" aria-label="Google Drive sync"></button>
     </header>
+
 
     <div class="search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -239,66 +235,6 @@
     </div>
   </section>
 
-  <!-- ============ SETTINGS ============ -->
-  <section id="view-settings" class="view">
-    <header class="page-header">
-      <button class="icon-btn" id="settings-back" aria-label="Back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      </button>
-      <h1 class="page-title">Settings</h1>
-      <span style="width:44px"></span>
-    </header>
-
-    <div class="settings-wrap">
-
-      <!-- GitHub Sync -->
-      <div class="settings-card">
-        <h2 class="settings-card__title">GitHub Sync</h2>
-        <p class="settings-card__desc">Back up your recipes to a private GitHub Gist — free, automatic, and available on any device.</p>
-
-        <!-- Not connected -->
-        <div id="settings-connect-form">
-          <div class="field">
-            <label for="github-token-input" class="field__label">Personal Access Token</label>
-            <p class="field__hint">
-              <a href="https://github.com/settings/tokens/new?scopes=gist&description=Supper+Club" target="_blank" rel="noopener" class="settings-link">Create a token on GitHub</a>
-              — choose "Classic", tick the <strong>gist</strong> scope, then paste it here.
-            </p>
-            <input type="password" id="github-token-input" class="field__input" placeholder="ghp_…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
-          </div>
-          <button type="button" class="btn btn--primary settings-full-btn" id="settings-connect">Connect</button>
-        </div>
-
-        <!-- Connected -->
-        <div id="settings-connected-info" hidden>
-          <div class="settings-info-row">
-            <span class="settings-info-label">Status</span>
-            <span class="settings-info-value settings-status-ok">Connected ✓</span>
-          </div>
-          <div class="settings-info-row">
-            <span class="settings-info-label">Gist ID</span>
-            <span class="settings-info-value settings-mono" id="settings-gist-id"></span>
-          </div>
-          <div class="settings-info-row">
-            <span class="settings-info-label">Last sync</span>
-            <span class="settings-info-value" id="settings-last-sync"></span>
-          </div>
-          <div class="settings-btn-row">
-            <button type="button" class="btn btn--ghost" id="settings-sync-now">Sync now</button>
-            <button type="button" class="btn btn--ghost" id="settings-disconnect">Disconnect</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Export / Backup -->
-      <div class="settings-card">
-        <h2 class="settings-card__title">Export</h2>
-        <p class="settings-card__desc">Download all your recipes as a JSON file you can keep as a manual backup or import elsewhere.</p>
-        <button type="button" class="btn btn--ghost settings-full-btn" id="settings-export">Download backup</button>
-      </div>
-
-    </div>
-  </section>
 
   <!-- Toast -->
   <div class="toast" id="toast" hidden></div>

@@ -7,11 +7,14 @@
 
   const STORAGE_KEY    = 'le.recipes.v1';
   const CATEGORIES_KEY = 'le.categories.v1';
-  const SYNC_TOKEN_KEY = 'le.sync.token';
-  const SYNC_GIST_KEY  = 'le.sync.gist_id';
-  const SYNC_LAST_KEY  = 'le.sync.last_at';
-  const GIST_API       = 'https://api.github.com/gists';
-  const GIST_FILENAME  = 'supper-club-recipes.json';
+
+  // Google Drive sync
+  const GDRIVE_CLIENT_ID = '94304590595-4961bflcf84aja17ss5qrbvcpv36kd3s.apps.googleusercontent.com';
+  const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata';
+  const GDRIVE_FILENAME  = 'supper-club-recipes.json';
+  const GDRIVE_API       = 'https://www.googleapis.com/drive/v3';
+  const GDRIVE_UPLOAD    = 'https://www.googleapis.com/upload/drive/v3';
+  const GIS_URL          = 'https://accounts.google.com/gsi/client';
 
   const DEFAULT_CATEGORIES = ['Breakfast','Lunch','Dinner','Dessert','Snack','Drinks','Baking','Salad','Soup','Side'];
   const CROPPER_CSS  = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css';
@@ -29,19 +32,20 @@
   let currentRecipeId   = null;
   let pendingDeleteId   = null;
   let cropperInstance   = null;
-  let cropperEditIndex  = null;   // null = new image; number = replace existing at index
+  let cropperEditIndex  = null;
+  let viewMode          = 'list';
+  let sortBy            = 'date';
+  let sortDir           = 'desc';
 
-  // View / sort state
-  let viewMode = 'list';   // 'list' | 'grid'
-  let sortBy   = 'date';   // 'date' | 'name'
-  let sortDir  = 'desc';   // 'asc'  | 'desc'
-
-  // Sync state
-  let syncToken  = localStorage.getItem(SYNC_TOKEN_KEY) || '';
-  let syncGistId = localStorage.getItem(SYNC_GIST_KEY)  || '';
-  let syncLastAt = parseInt(localStorage.getItem(SYNC_LAST_KEY) || '0', 10);
-  let syncStatus = 'idle';
-  let pushTimer  = null;
+  // Drive sync state
+  let gdriveToken   = localStorage.getItem('le.gdrive.token')   || '';
+  let gdriveExpiry  = parseInt(localStorage.getItem('le.gdrive.expiry') || '0', 10);
+  let gdriveFileId  = localStorage.getItem('le.gdrive.file_id') || '';
+  let gdriveEmail   = localStorage.getItem('le.gdrive.email')   || '';
+  let tokenClient   = null;
+  let _tokenResolve = null;
+  let _tokenReject  = null;
+  let pushTimer     = null;
 
   // ---------- Storage & migration ----------
   function migrateRecipe(r) {
@@ -58,10 +62,16 @@
     try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw).map(migrateRecipe) : []; }
     catch (e) { return []; }
   }
-  function saveRecipes() {
+  function saveRecipesLocal() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes)); }
     catch (e) { toast('Could not save — storage full?'); }
-    if (syncToken) { clearTimeout(pushTimer); pushTimer = setTimeout(() => gistPush().catch(() => {}), 2000); }
+  }
+  function saveRecipes() {
+    saveRecipesLocal();
+    if (gdriveEmail) {
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(() => gdrivePush().catch(() => {}), 2000);
+    }
   }
   function loadCategories() {
     try { const raw = localStorage.getItem(CATEGORIES_KEY); return raw ? JSON.parse(raw) : []; }
@@ -108,106 +118,176 @@
     } catch (e) { return ''; }
   }
 
-  // ---------- GitHub Gist sync ----------
-  function saveSyncConfig() {
-    localStorage.setItem(SYNC_TOKEN_KEY, syncToken);
-    localStorage.setItem(SYNC_GIST_KEY,  syncGistId);
+  // ---------- Google Drive sync ----------
+  function isTokenValid() {
+    return !!(gdriveToken && Date.now() < gdriveExpiry - 60000);
   }
-  function setSyncStatus(status) {
-    syncStatus = status;
-    const dot = document.getElementById('sync-dot');
-    if (!dot) return;
-    dot.className = 'sync-dot';
-    if      (status === 'ok')      dot.classList.add('sync-dot--ok');
-    else if (status === 'error')   dot.classList.add('sync-dot--error');
-    else if (status === 'syncing') dot.classList.add('sync-dot--syncing');
+
+  function saveDriveState() {
+    localStorage.setItem('le.gdrive.token',   gdriveToken);
+    localStorage.setItem('le.gdrive.expiry',  String(gdriveExpiry));
+    localStorage.setItem('le.gdrive.file_id', gdriveFileId);
+    localStorage.setItem('le.gdrive.email',   gdriveEmail);
   }
-  async function gistRequest(method, path, body) {
-    const res = await fetch(GIST_API + path, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${syncToken}`, 'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28',
+
+  function loadGisScript() {
+    return new Promise((resolve) => {
+      if (typeof google !== 'undefined' && google.accounts) { resolve(); return; }
+      if (document.querySelector('script[data-gis]')) {
+        const check = setInterval(() => {
+          if (typeof google !== 'undefined' && google.accounts) { clearInterval(check); resolve(); }
+        }, 100);
+        setTimeout(() => { clearInterval(check); resolve(); }, 8000);
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = GIS_URL; s.dataset.gis = '1';
+      s.onload = () => { setTimeout(resolve, 100); };
+      s.onerror = resolve;
+      document.head.appendChild(s);
+    });
+  }
+
+  function initTokenClient() {
+    if (typeof google === 'undefined' || !google.accounts || tokenClient) return;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: GDRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp.error) {
+          if (_tokenReject) _tokenReject(new Error(resp.error));
+        } else {
+          gdriveToken  = resp.access_token;
+          gdriveExpiry = Date.now() + resp.expires_in * 1000;
+          saveDriveState();
+          if (_tokenResolve) _tokenResolve();
+        }
+        _tokenResolve = null; _tokenReject = null;
       },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.message || `HTTP ${res.status}`); }
-    return res.json();
-  }
-  async function gistPush() {
-    if (!syncToken) return;
-    setSyncStatus('syncing');
-    try {
-      const content = JSON.stringify(recipes), files = { [GIST_FILENAME]: { content } };
-      if (syncGistId) {
-        await gistRequest('PATCH', `/${syncGistId}`, { files });
-      } else {
-        const res = await gistRequest('POST', '', { description: 'Supper Club — recipe backup', public: false, files });
-        syncGistId = res.id; saveSyncConfig(); renderSettingsState();
+      error_callback: (err) => {
+        if (_tokenReject) _tokenReject(new Error(err ? err.type : 'auth_error'));
+        _tokenResolve = null; _tokenReject = null;
       }
-      syncLastAt = Date.now(); localStorage.setItem(SYNC_LAST_KEY, String(syncLastAt)); setSyncStatus('ok');
-    } catch (e) { console.error('Gist push failed:', e); setSyncStatus('error'); }
-  }
-  async function gistPull(showToast) {
-    if (!syncToken || !syncGistId) return;
-    setSyncStatus('syncing');
-    try {
-      const gist = await gistRequest('GET', `/${syncGistId}`);
-      const file = gist.files && gist.files[GIST_FILENAME];
-      if (!file) throw new Error('Recipe file not found in Gist');
-      let content = file.content;
-      if (file.truncated && file.raw_url) {
-        const raw = await fetch(file.raw_url, { headers: { 'Authorization': `Bearer ${syncToken}` } });
-        if (!raw.ok) throw new Error('Could not fetch full data');
-        content = await raw.text();
-      }
-      const pulled = JSON.parse(content);
-      if (!Array.isArray(pulled)) throw new Error('Invalid recipe data in Gist');
-      recipes = pulled.map(migrateRecipe); saveRecipes();
-      if (location.hash === '#/' || location.hash === '') renderHome();
-      syncLastAt = Date.now(); localStorage.setItem(SYNC_LAST_KEY, String(syncLastAt)); setSyncStatus('ok');
-      if (showToast) toast('Recipes synced ✓');
-    } catch (e) { console.error('Gist pull failed:', e); setSyncStatus('error'); if (showToast) toast('Sync failed: ' + e.message); }
-  }
-  async function verifyToken(token) {
-    const res = await fetch('https://api.github.com/user', {
-      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
     });
-    return res.ok;
   }
-  async function connectGist() {
-    const tokenInput = document.getElementById('github-token-input');
-    const token = tokenInput.value.trim();
-    if (!token) { toast('Paste your GitHub token first'); return; }
-    const btn = document.getElementById('settings-connect');
-    btn.textContent = 'Connecting…'; btn.disabled = true; setSyncStatus('syncing');
-    try {
-      if (!await verifyToken(token)) throw new Error('Token invalid or missing gist scope');
-      syncToken = token; syncGistId = ''; saveSyncConfig(); await gistPush();
-      renderSettingsState(); toast('Connected! Recipes backed up to GitHub ✓');
-    } catch (e) { setSyncStatus('error'); toast('Connection failed: ' + e.message); btn.textContent = 'Connect'; btn.disabled = false; }
+
+  function requestToken(prompt = '') {
+    return new Promise((resolve, reject) => {
+      if (!tokenClient) { reject(new Error('Auth not ready')); return; }
+      _tokenResolve = resolve;
+      _tokenReject  = reject;
+      try { tokenClient.requestAccessToken({ prompt }); }
+      catch (e) { _tokenResolve = null; _tokenReject = null; reject(e); }
+    });
   }
-  function disconnectGist() {
-    syncToken = ''; syncGistId = ''; syncLastAt = 0;
-    saveSyncConfig(); localStorage.removeItem(SYNC_LAST_KEY); setSyncStatus('idle');
-    renderSettingsState(); toast('Disconnected');
+
+  async function ensureToken(silent = true) {
+    if (isTokenValid()) return true;
+    try { await requestToken(silent ? '' : 'select_account'); return true; }
+    catch (e) { return false; }
   }
-  function renderSettingsState() {
-    const connected = !!(syncToken && syncGistId);
-    const connectForm   = document.getElementById('settings-connect-form');
-    const connectedInfo = document.getElementById('settings-connected-info');
-    const gistIdEl      = document.getElementById('settings-gist-id');
-    const lastSyncEl    = document.getElementById('settings-last-sync');
-    const connectBtn    = document.getElementById('settings-connect');
-    if (!connectForm) return;
-    connectForm.hidden = connected; connectedInfo.hidden = !connected;
-    if (connected) {
-      gistIdEl.textContent   = syncGistId;
-      lastSyncEl.textContent = syncLastAt ? 'Last synced ' + new Date(syncLastAt).toLocaleString() : 'Not yet synced';
-      connectBtn.textContent = 'Connect'; connectBtn.disabled = false;
-    } else {
-      document.getElementById('github-token-input').value = syncToken || '';
+
+  async function driveApiFetch(url, options = {}) {
+    const res = await fetch(url, {
+      ...options,
+      headers: { 'Authorization': `Bearer ${gdriveToken}`, ...(options.headers || {}) }
+    });
+    if (res.status === 401) throw Object.assign(new Error('Token expired'), { status: 401 });
+    if (!res.ok) throw new Error(`Drive ${res.status}`);
+    const text = await res.text();
+    return text ? JSON.parse(text) : {};
+  }
+
+  async function driveFindFile() {
+    const data = await driveApiFetch(
+      `${GDRIVE_API}/files?spaces=appDataFolder&q=name%3D'${GDRIVE_FILENAME}'&fields=files(id)`
+    );
+    return data.files && data.files[0] ? data.files[0].id : null;
+  }
+
+  async function driveEnsureFile() {
+    if (gdriveFileId) return gdriveFileId;
+    let id = await driveFindFile();
+    if (!id) {
+      const boundary = 'supperclub_boundary';
+      const meta = JSON.stringify({ name: GDRIVE_FILENAME, parents: ['appDataFolder'] });
+      const multipart = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n[]\r\n--${boundary}--`;
+      const data = await driveApiFetch(`${GDRIVE_UPLOAD}/files?uploadType=multipart&fields=id`, {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body: multipart
+      });
+      id = data.id;
     }
+    gdriveFileId = id;
+    localStorage.setItem('le.gdrive.file_id', id);
+    return id;
+  }
+
+  async function gdrivePush() {
+    if (!gdriveEmail) return;
+    if (!await ensureToken()) return;
+    try {
+      const fileId = await driveEnsureFile();
+      await driveApiFetch(`${GDRIVE_UPLOAD}/files/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recipes)
+      });
+    } catch (e) {
+      console.error('Drive push failed:', e);
+    }
+  }
+
+  async function gdrivePull() {
+    if (!gdriveEmail) return;
+    if (!await ensureToken()) return;
+    try {
+      const fileId = gdriveFileId || await driveFindFile();
+      if (!fileId) { await gdrivePush(); return; }
+      gdriveFileId = fileId;
+      localStorage.setItem('le.gdrive.file_id', fileId);
+      const res = await fetch(`${GDRIVE_API}/files/${fileId}?alt=media`, {
+        headers: { 'Authorization': `Bearer ${gdriveToken}` }
+      });
+      if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
+      const pulled = await res.json();
+      if (!Array.isArray(pulled)) throw new Error('Invalid data from Drive');
+      recipes = pulled.map(migrateRecipe);
+      saveRecipesLocal();
+      if (location.hash === '#/' || location.hash === '') renderHome();
+    } catch (e) {
+      console.error('Drive pull failed:', e);
+    }
+  }
+
+  async function connectGdrive() {
+    const btn = document.getElementById('gdrive-home-btn');
+    if (btn) btn.disabled = true;
+    try {
+      if (!await ensureToken(false)) throw new Error('Sign-in cancelled');
+      const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { 'Authorization': `Bearer ${gdriveToken}` }
+      });
+      if (infoRes.ok) {
+        const user = await infoRes.json();
+        gdriveEmail = user.email || '';
+        localStorage.setItem('le.gdrive.email', gdriveEmail);
+      }
+      await gdrivePush();
+      renderGdriveHomeBtn();
+      toast('Connected to Google Drive ✓');
+    } catch (e) {
+      toast(e.message === 'Sign-in cancelled' ? 'Sign-in cancelled' : 'Sign-in failed');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function renderGdriveHomeBtn() {
+    const btn = document.getElementById('gdrive-home-btn');
+    if (!btn) return;
+    btn.hidden = !!gdriveEmail;
   }
 
   // ---------- Lazy loaders ----------
@@ -254,7 +334,6 @@
       if (!r) { navigate('#/'); return; }
       openForm(r); showView('edit'); return;
     }
-    if (h === '#/settings') { renderSettingsState(); showView('settings'); return; }
     if (h === '#/confirm-delete') { showView('confirm'); return; }
     navigate('#/');
   }
@@ -266,7 +345,7 @@
     renderRecipeList();
   }
 
-  // ---------- Toolbar (view toggle + sort) ----------
+  // ---------- Toolbar ----------
   function renderToolbar() {
     const listBtn = document.getElementById('view-list-btn');
     const gridBtn = document.getElementById('view-grid-btn');
@@ -277,9 +356,8 @@
     const sortBtn   = document.getElementById('sort-btn');
     const isDefault = sortBy === 'date' && sortDir === 'desc';
     if (sortLbl) {
-      if (isDefault) {
-        sortLbl.textContent = ''; sortLbl.hidden = true;
-      } else {
+      if (isDefault) { sortLbl.textContent = ''; sortLbl.hidden = true; }
+      else {
         const label = sortBy === 'name'
           ? (sortDir === 'asc' ? 'A–Z' : 'Z–A')
           : (sortDir === 'asc' ? 'Oldest' : 'Newest');
@@ -294,8 +372,7 @@
     else if (sortBy === 'date' && sortDir === 'asc')  { sortBy = 'name'; sortDir = 'asc'; }
     else if (sortBy === 'name' && sortDir === 'asc')  { sortDir = 'desc'; }
     else { sortBy = 'date'; sortDir = 'desc'; }
-    renderToolbar();
-    renderRecipeList();
+    renderToolbar(); renderRecipeList();
   }
 
   // ---------- Icons ----------
@@ -311,8 +388,8 @@
 
   // ---------- Filter chips ----------
   function renderFilterChips() {
-    const wrap         = document.getElementById('filter-chips');
-    const usedCats     = new Set();
+    const wrap = document.getElementById('filter-chips');
+    const usedCats = new Set();
     recipes.forEach(r => (r.categories || []).forEach(c => usedCats.add(c)));
     const hasBookmarks = recipes.some(r => r.bookmarked);
     const hasMade      = recipes.some(r => r.made);
@@ -367,7 +444,6 @@
     else if (activeFilter !== 'All')        filtered = filtered.filter(r => (r.categories || []).includes(activeFilter));
     if (searchTerm) filtered = filtered.filter(r => matchesSearch(r, searchTerm));
 
-    // Sort
     if (sortBy === 'name') {
       filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
       if (sortDir === 'desc') filtered.reverse();
@@ -376,7 +452,6 @@
       if (sortDir === 'asc') filtered.reverse();
     }
 
-    // Apply view class
     list.className = 'recipe-list' + (viewMode === 'grid' ? ' recipe-list--grid' : '');
 
     if (recipes.length === 0) {
@@ -524,22 +599,17 @@
     const addMoreLabel = document.getElementById('image-upload-more');
 
     if (editingImages.length === 0) {
-      emptyLabel.hidden  = false;
-      stripWrap.hidden   = true;
+      emptyLabel.hidden = false; stripWrap.hidden = true;
       if (addMoreLabel) addMoreLabel.hidden = true;
-      strip.innerHTML    = '';
+      strip.innerHTML = '';
     } else {
-      emptyLabel.hidden  = true;
-      stripWrap.hidden   = false;
+      emptyLabel.hidden = true; stripWrap.hidden = false;
       if (addMoreLabel) addMoreLabel.hidden = false;
-
       strip.innerHTML = editingImages.map((img, i) => `
         <div class="img-thumb">
           <div class="img-thumb__img" data-idx="${i}" title="Tap to edit" style="background-image:url('${img}')"></div>
           <button type="button" class="img-thumb__remove" data-idx="${i}" aria-label="Remove photo">✕</button>
         </div>`).join('');
-
-      // Tap thumbnail to re-crop
       strip.querySelectorAll('.img-thumb__img').forEach(el => {
         el.addEventListener('click', () => {
           const idx = parseInt(el.dataset.idx, 10);
@@ -547,7 +617,6 @@
           openCropper(editingImages[idx]);
         });
       });
-
       strip.querySelectorAll('.img-thumb__remove').forEach(btn => {
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -561,8 +630,7 @@
   // ---------- Category pickers ----------
   function renderCategoryPickers() {
     const wrap   = document.getElementById('category-pickers');
-    const known  = allCategories();
-    const merged = [...known];
+    const merged = [...allCategories()];
     editingCategories.forEach(c => {
       if (!merged.some(k => k.toLowerCase() === c.toLowerCase())) merged.push(c);
     });
@@ -583,8 +651,7 @@
   function addNewCategoryFromInput() {
     const input = document.getElementById('new-category-input');
     const val   = input.value.trim(); if (!val) return;
-    const known = allCategories();
-    if (!known.some(k => k.toLowerCase() === val.toLowerCase())) { userCategories.push(val); saveCategories(); }
+    if (!allCategories().some(k => k.toLowerCase() === val.toLowerCase())) { userCategories.push(val); saveCategories(); }
     if (!editingCategories.some(x => x.toLowerCase() === val.toLowerCase())) editingCategories.push(val);
     input.value = ''; renderCategoryPickers();
   }
@@ -660,9 +727,8 @@
     if (!imageFiles.length) return;
     showLoading(`Adding ${imageFiles.length} photo${imageFiles.length > 1 ? 's' : ''}…`);
     try {
-      for (const file of imageFiles) {
+      for (const file of imageFiles)
         editingImages.push(await compressDataUrl(await fileToDataUrl(file), 1200, 0.82));
-      }
       renderImageStrip();
     } catch (err) { console.error(err); toast('Could not process images'); }
     finally { hideLoading(); }
@@ -689,29 +755,17 @@
       } catch (e) { toast('Could not add photo'); }
       return;
     }
-
     showView('cropper');
     const img = document.getElementById('cropper-img');
     destroyCropper();
-
     img.onload = () => {
       if (!document.getElementById('view-cropper').classList.contains('view--active')) return;
-      // Lock aspect ratio to the original image's proportions
       const ratio = img.naturalWidth / img.naturalHeight;
       cropperInstance = new Cropper(img, {
-        aspectRatio: ratio,      // locked to original proportions
-        dragMode: 'move',        // dragging canvas moves image (no re-drawing crop box)
-        viewMode: 2,
-        autoCropArea: 0.92,
-        background: false,
-        movable: true,
-        zoomable: true,
-        rotatable: false,
-        scalable: false,
-        cropBoxResizable: true,
-        responsive: true,
-        guides: true,
-        minContainerHeight: 300,
+        aspectRatio: ratio, dragMode: 'move', viewMode: 2,
+        autoCropArea: 0.92, background: false, movable: true, zoomable: true,
+        rotatable: false, scalable: false, cropBoxResizable: true, responsive: true,
+        guides: true, minContainerHeight: 300,
       });
     };
     img.onerror = () => { toast('Could not load image for cropping'); showView('edit'); };
@@ -729,16 +783,12 @@
     if (!canvas) { toast('Crop failed'); return; }
     try {
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-      if (cropperEditIndex !== null) {
-        editingImages[cropperEditIndex] = dataUrl;   // replace existing
-      } else {
-        editingImages.push(dataUrl);                 // add new
-      }
+      if (cropperEditIndex !== null) editingImages[cropperEditIndex] = dataUrl;
+      else editingImages.push(dataUrl);
       cropperEditIndex = null;
       renderImageStrip();
     } catch (err) { toast('Could not save crop'); return; }
-    destroyCropper();
-    showView('edit');
+    destroyCropper(); showView('edit');
   }
   function cancelCropper() {
     cropperEditIndex = null;
@@ -801,18 +851,6 @@
     toast(field === 'method' ? 'Set as Method' : 'Set as Ingredients');
   }
 
-  // ---------- Export ----------
-  function exportData() {
-    try {
-      const blob = new Blob([JSON.stringify(recipes, null, 2)], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = `supper-club-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url); toast('Recipes exported');
-    } catch (e) { toast('Export failed'); }
-  }
-
   // ---------- Share ----------
   function formatForShare(r) {
     const lines = [(r.title || 'Untitled').toUpperCase(), ''];
@@ -849,17 +887,13 @@
 
   // ---------- Event wiring ----------
   function wireEvents() {
-    // Home
     document.getElementById('fab-add').addEventListener('click', () => navigate('#/new'));
     document.getElementById('search-input').addEventListener('input', e => { searchTerm = e.target.value.trim(); renderRecipeList(); });
-    document.getElementById('settings-btn').addEventListener('click', () => navigate('#/settings'));
 
-    // Toolbar
     document.getElementById('view-list-btn').addEventListener('click', () => { viewMode = 'list'; renderToolbar(); renderRecipeList(); });
     document.getElementById('view-grid-btn').addEventListener('click', () => { viewMode = 'grid'; renderToolbar(); renderRecipeList(); });
     document.getElementById('sort-btn').addEventListener('click', cycleSort);
 
-    // Recipe detail
     document.getElementById('recipe-back').addEventListener('click', () => navigate('#/'));
     document.getElementById('recipe-edit').addEventListener('click', () => { if (currentRecipeId) navigate('#/edit/' + currentRecipeId); });
     document.getElementById('recipe-delete').addEventListener('click', () => { if (currentRecipeId) askDelete(currentRecipeId); });
@@ -867,11 +901,9 @@
     document.getElementById('recipe-bookmark').addEventListener('click', () => { if (currentRecipeId) toggleBookmark(currentRecipeId); });
     document.getElementById('recipe-made').addEventListener('click', () => { if (currentRecipeId) toggleMade(currentRecipeId); });
 
-    // Edit form
     document.getElementById('edit-cancel').addEventListener('click', () => { if (editingId) navigate('#/recipe/' + editingId); else navigate('#/'); });
     document.getElementById('edit-save').addEventListener('click', saveRecipeFromForm);
 
-    // Image input
     document.getElementById('image-input').addEventListener('change', e => {
       const files = e.target.files; if (!files || !files.length) return;
       if (files.length === 1) handleImageFile(files[0]);
@@ -879,24 +911,19 @@
       e.target.value = '';
     });
 
-    // Cropper
     document.getElementById('cropper-done').addEventListener('click', commitCropper);
     document.getElementById('cropper-cancel').addEventListener('click', cancelCropper);
 
-    // Import from photo
     document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-input').click());
     document.getElementById('import-input').addEventListener('change', e => { if (e.target.files && e.target.files.length) importFromPhotos(e.target.files); });
 
-    // Categories
     document.getElementById('new-category-btn').addEventListener('click', addNewCategoryFromInput);
     document.getElementById('new-category-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addNewCategoryFromInput(); } });
 
-    // OCR
     document.getElementById('ocr-cancel').addEventListener('click', () => showView('edit'));
     document.getElementById('ocr-to-ingredients').addEventListener('click', () => applyOcrTo('ingredients'));
     document.getElementById('ocr-to-method').addEventListener('click', () => applyOcrTo('method'));
 
-    // Confirm delete
     document.getElementById('confirm-cancel').addEventListener('click', () => {
       pendingDeleteId = null;
       if (currentRecipeId && recipes.find(r => r.id === currentRecipeId)) navigate('#/recipe/' + currentRecipeId);
@@ -904,30 +931,26 @@
     });
     document.getElementById('confirm-ok').addEventListener('click', doDelete);
 
-    // Settings
-    document.getElementById('settings-back').addEventListener('click', () => navigate('#/'));
-    document.getElementById('settings-connect').addEventListener('click', connectGist);
-    document.getElementById('settings-sync-now').addEventListener('click', () => gistPull(true).catch(() => {}));
-    document.getElementById('settings-disconnect').addEventListener('click', disconnectGist);
-    document.getElementById('settings-export').addEventListener('click', exportData);
+    document.getElementById('gdrive-home-btn').addEventListener('click', connectGdrive);
 
-    // Routing
     window.addEventListener('hashchange', handleHash);
   }
 
   // ---------- PWA ----------
   function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator)
       window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
-    }
   }
 
-  function init() {
+  async function init() {
+    ['le.sync.token','le.sync.gist_id','le.sync.last_at'].forEach(k => localStorage.removeItem(k));
     wireEvents();
+    renderGdriveHomeBtn();
     handleHash();
     registerServiceWorker();
-    if (syncToken && syncGistId) setSyncStatus('ok');
-    if (syncToken && syncGistId) gistPull(false).catch(() => {});
+    await loadGisScript();
+    initTokenClient();
+    if (gdriveEmail) gdrivePull().catch(() => {});
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

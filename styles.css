@@ -785,120 +785,39 @@ input, textarea {
   to { transform: rotate(360deg); }
 }
 
-/* ============ Settings / sync button (home header) ============ */
+/* ============ Google Drive home button ============ */
 .home-header {
   position: relative;
 }
-.settings-btn {
+.gdrive-home-btn {
   position: absolute;
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
   margin-top: calc(var(--safe-top) / 2);
-  width: 32px;
+  min-width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--grey-soft);
-  border-radius: 50%;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-.settings-btn:active { background: var(--cream-deep); color: var(--grey); }
-.settings-btn svg { width: 15px; height: 15px; }
-
-/* Sync status dot */
-.sync-dot {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: transparent;
-  border: 1.5px solid transparent;
-}
-.sync-dot--ok      { background: #4a9e6b; border-color: #4a9e6b; }
-.sync-dot--error   { background: #b3261e; border-color: #b3261e; }
-.sync-dot--syncing {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
-  animation: pulse 1s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-
-/* ============ Settings view ============ */
-.settings-wrap {
-  padding: 16px var(--space) calc(60px + var(--safe-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.settings-card {
-  background: #fff;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius);
-  padding: 20px;
-}
-.settings-card__title {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.settings-card__desc {
-  margin: 0 0 18px;
-  font-size: 13px;
+  gap: 5px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
   color: var(--grey);
-  line-height: 1.5;
-}
-.settings-link {
-  color: var(--ink);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.settings-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line-soft);
-}
-.settings-info-row:last-of-type { border-bottom: none; }
-.settings-info-label {
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--grey);
-  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.settings-info-value {
-  font-size: 13px;
-  color: var(--ink-soft);
-  text-align: right;
-  word-break: break-all;
+/* Show border only when showing sign-in label */
+.gdrive-home-btn:has(.gdrive-home-btn__lbl) {
+  border-color: var(--line);
+  background: #fff;
 }
-.settings-status-ok  { color: #4a9e6b; font-weight: 600; }
-.settings-mono       { font-family: monospace; font-size: 11px; }
-.settings-btn-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-.settings-btn-row .btn { flex: 1; }
-.settings-full-btn { width: 100%; margin-top: 4px; }
+.gdrive-home-btn:active { background: var(--cream-deep); }
+.gdrive-home-btn__lbl { font-size: 12px; font-weight: 600; color: var(--ink); }
 
-/* Primary button style */
-.btn--primary {
-  background: var(--ink);
-  color: var(--cream);
-}
+
 
 /* ============ Image strip (multi-photo in edit form) ============ */
 .image-strip-wrap {
