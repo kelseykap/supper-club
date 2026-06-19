@@ -173,16 +173,26 @@
   function requestToken(prompt = '') {
     return new Promise((resolve, reject) => {
       if (!tokenClient) { reject(new Error('Auth not ready')); return; }
-      _tokenResolve = resolve;
-      _tokenReject  = reject;
+      let settled = false;
+      const settle = (fn, val) => {
+        if (settled) return; settled = true;
+        _tokenResolve = null; _tokenReject = null;
+        clearTimeout(timer); fn(val);
+      };
+      const timer = setTimeout(() => settle(reject, new Error('Auth timed out')), 10000);
+      _tokenResolve = () => settle(resolve);
+      _tokenReject  = (e) => settle(reject, e);
       try { tokenClient.requestAccessToken({ prompt }); }
-      catch (e) { _tokenResolve = null; _tokenReject = null; reject(e); }
+      catch (e) { settle(reject, e); }
     });
   }
 
   async function ensureToken(silent = true) {
     if (isTokenValid()) return true;
-    try { await requestToken(silent ? '' : 'select_account'); return true; }
+    // Background ops: fail fast — never risk showing UI (popup/redirect) during auto-push/pull
+    if (silent) return false;
+    // User-triggered: try a silent token refresh (no account selector shown)
+    try { await requestToken(''); return true; }
     catch (e) { return false; }
   }
 
@@ -233,7 +243,8 @@
 
   async function gdrivePush() {
     if (!gdriveConnected) return;
-    if (!await ensureToken()) { needsReauth(); return; }
+    // Background push: if token is expired, don't attempt refresh (risk of popup on mobile)
+    if (!isTokenValid()) { needsReauth(); return; }
     try {
       const fileId = await driveEnsureFile();
       await driveApiFetch(`${GDRIVE_UPLOAD}/files/${fileId}?uploadType=media`, {
@@ -246,9 +257,19 @@
     }
   }
 
+  function mergeRecipes(local, remote) {
+    const map = new Map();
+    local.forEach(r => map.set(r.id, r));
+    remote.forEach(r => {
+      const existing = map.get(r.id);
+      if (!existing || (r.updatedAt || 0) > (existing.updatedAt || 0)) map.set(r.id, r);
+    });
+    return Array.from(map.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  }
+
   async function gdrivePull(silent = true) {
     if (!gdriveConnected) return;
-    if (!await ensureToken()) { if (!silent) needsReauth(); return; }
+    if (!await ensureToken(silent)) { if (!silent) needsReauth(); return; }
     try {
       const fileId = gdriveFileId || await driveFindFile();
       if (!fileId) { await gdrivePush(); return; }
@@ -260,8 +281,15 @@
       if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
       const pulled = await res.json();
       if (!Array.isArray(pulled)) throw new Error('Invalid data from Drive');
-      recipes = pulled.map(migrateRecipe);
+      const merged = mergeRecipes(recipes, pulled.map(migrateRecipe));
+      // Backup current local data before overwriting (recovery option)
+      if (recipes.length > 0) {
+        try { localStorage.setItem('le.recipes.backup', JSON.stringify(recipes)); } catch (_) {}
+      }
+      recipes = merged;
       saveRecipesLocal();
+      // Push merged result back so Drive stays up to date
+      gdrivePush().catch(() => {});
       if (location.hash === '#/' || location.hash === '') renderHome();
       if (!silent) toast('Synced ✓');
     } catch (e) {
@@ -274,7 +302,9 @@
     const btn = document.getElementById('gdrive-home-btn');
     if (btn) btn.disabled = true;
     try {
-      if (!await ensureToken(false)) throw new Error('Sign-in cancelled');
+      // Explicit sign-in: always show account selector
+      gdriveToken = ''; gdriveExpiry = 0;  // force fresh auth
+      if (!await requestToken('select_account').then(() => true, () => false)) throw new Error('Sign-in cancelled');
       gdriveConnected = true;
       localStorage.setItem('le.gdrive.connected', '1');
       await gdrivePull(false); // pull first — if no Drive file yet, gdrivePull creates one from local
