@@ -223,9 +223,17 @@
     return id;
   }
 
+  function needsReauth() {
+    // Token refresh failed — show sign-in button again
+    gdriveConnected = false;
+    localStorage.removeItem('le.gdrive.connected');
+    renderGdriveHomeBtn();
+    toast('Tap "Sign in" to reconnect Google Drive');
+  }
+
   async function gdrivePush() {
     if (!gdriveConnected) return;
-    if (!await ensureToken()) return;
+    if (!await ensureToken()) { needsReauth(); return; }
     try {
       const fileId = await driveEnsureFile();
       await driveApiFetch(`${GDRIVE_UPLOAD}/files/${fileId}?uploadType=media`, {
@@ -238,9 +246,9 @@
     }
   }
 
-  async function gdrivePull() {
+  async function gdrivePull(silent = true) {
     if (!gdriveConnected) return;
-    if (!await ensureToken()) return;
+    if (!await ensureToken()) { if (!silent) needsReauth(); return; }
     try {
       const fileId = gdriveFileId || await driveFindFile();
       if (!fileId) { await gdrivePush(); return; }
@@ -255,8 +263,10 @@
       recipes = pulled.map(migrateRecipe);
       saveRecipesLocal();
       if (location.hash === '#/' || location.hash === '') renderHome();
+      if (!silent) toast('Synced ✓');
     } catch (e) {
       console.error('Drive pull failed:', e);
+      if (!silent) toast('Sync failed — check connection');
     }
   }
 
@@ -267,7 +277,7 @@
       if (!await ensureToken(false)) throw new Error('Sign-in cancelled');
       gdriveConnected = true;
       localStorage.setItem('le.gdrive.connected', '1');
-      await gdrivePull(); // pull first — if no Drive file yet, gdrivePull creates one from local
+      await gdrivePull(false); // pull first — if no Drive file yet, gdrivePull creates one from local
       renderGdriveHomeBtn();
       toast('Connected to Google Drive ✓');
     } catch (e) {
@@ -956,7 +966,7 @@
     registerServiceWorker();
     await loadGisScript();
     initTokenClient();
-    if (gdriveConnected) gdrivePull().catch(() => {});
+    if (gdriveConnected) gdrivePull(false).catch(() => {});
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
