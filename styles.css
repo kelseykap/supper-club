@@ -92,7 +92,10 @@ input, textarea {
   height: 72px;
   width: auto;
   display: block;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.logo:active { opacity: 0.7; }
 
 .search-wrap {
   position: relative;

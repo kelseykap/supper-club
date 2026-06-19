@@ -904,6 +904,9 @@
   // ---------- Event wiring ----------
   function wireEvents() {
     document.getElementById('fab-add').addEventListener('click', () => navigate('#/new'));
+    document.querySelector('.logo').addEventListener('click', () => {
+      if (gdriveConnected) gdrivePull(false).catch(() => {});
+    });
     document.getElementById('search-input').addEventListener('input', e => { searchTerm = e.target.value.trim(); renderRecipeList(); });
 
     document.getElementById('view-list-btn').addEventListener('click', () => { viewMode = 'list'; renderToolbar(); renderRecipeList(); });
@@ -966,7 +969,7 @@
     registerServiceWorker();
     await loadGisScript();
     initTokenClient();
-    if (gdriveConnected) gdrivePull(false).catch(() => {});
+    if (gdriveConnected) gdrivePull().catch(() => {});  // silent on open
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
