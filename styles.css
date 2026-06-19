@@ -717,13 +717,13 @@ input, textarea {
 /* ============ Primary accent: Save button on form ============ */
 #edit-save { color: var(--ink); }
 #edit-save:active { color: var(--ink-soft); }
-/* Subtle gold underline accent on the form save button — sparing use */
+/* Gold underline accent on the form save button */
 .page-header #edit-save::after {
   content: '';
   display: block;
   height: 2px;
   margin: 2px auto 0;
-  width: 18px;
+  width: 100%;
   background: var(--accent);
   border-radius: 2px;
 }
@@ -902,17 +902,12 @@ input, textarea {
 
 /* ============ Image strip (multi-photo in edit form) ============ */
 .image-strip-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   margin-bottom: 8px;
-  min-height: 96px;
 }
 .image-strip {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  flex: 1;
   padding: 4px 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -932,7 +927,9 @@ input, textarea {
   background-size: cover;
   background-position: center;
   background-color: var(--cream-deep);
+  cursor: pointer;
 }
+.img-thumb__img:active { opacity: 0.82; }
 .img-thumb__remove {
   position: absolute;
   top: 4px;
@@ -950,22 +947,14 @@ input, textarea {
   transition: background 0.15s ease;
 }
 .img-thumb__remove:active { background: rgba(17, 17, 17, 0.9); }
-.image-strip__add {
-  flex-shrink: 0;
-  width: 60px;
-  height: 88px;
-  border-radius: var(--radius-sm);
-  background: #fff;
-  border: 1px dashed var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--grey);
-  transition: background 0.15s ease;
+
+/* "Add more" image label below the strip */
+.image-upload--more {
+  aspect-ratio: unset;
+  height: 68px;
+  margin-top: 0;
+  margin-bottom: 24px;
 }
-.image-strip__add:active { background: var(--cream-deep); }
-.image-strip__add svg { width: 22px; height: 22px; }
 
 /* ============ Image gallery (recipe detail — multiple photos) ============ */
 .recipe-gallery {
@@ -990,9 +979,12 @@ input, textarea {
   background-position: center;
 }
 
-/* ============ Source field (stacked inputs) ============ */
-.source-title-input {
-  margin-top: 8px;
+/* ============ Source link in recipe detail ============ */
+.source-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--line);
 }
 
 /* ============ Made tick button (recipe detail header) ============ */
@@ -1043,6 +1035,78 @@ input, textarea {
   color: #fff;
 }
 .chip--made.chip--active svg { stroke: #fff; }
+
+/* ============ List toolbar (view toggle + sort) ============ */
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space) 10px;
+}
+.list-toolbar__views {
+  display: flex;
+  gap: 2px;
+}
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--grey-soft);
+  font-size: 12px;
+  font-weight: 500;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.tool-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.tool-btn--active { color: var(--ink); }
+.tool-btn:active { background: var(--cream-deep); }
+.tool-btn__lbl { font-size: 12px; font-weight: 500; }
+
+/* ============ Grid view ============ */
+.recipe-list--grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.recipe-list--grid .recipe-card {
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+}
+.recipe-list--grid .recipe-card__thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 0;
+}
+.recipe-list--grid .recipe-card__body {
+  padding: 8px 10px 10px;
+}
+.recipe-list--grid .recipe-card__title {
+  font-size: 13px;
+  -webkit-line-clamp: 2;
+}
+.recipe-list--grid .recipe-card__cats { display: none; }
+
+/* ============ Not Made filter chip ============ */
+.chip--not-made svg {
+  width: 12px;
+  height: 12px;
+  margin-right: 5px;
+  vertical-align: -1px;
+  flex-shrink: 0;
+  stroke: var(--grey);
+  fill: none;
+}
+.chip--not-made.chip--active {
+  background: var(--ink-soft);
+  border-color: var(--ink-soft);
+  color: var(--cream);
+}
+.chip--not-made.chip--active svg { stroke: var(--cream); }
 
 /* ============ Larger screens: still mobile-feel, centered ============ */
 @media (min-width: 640px) {
